@@ -281,20 +281,3 @@ Este proyecto es de código abierto bajo la licencia MIT. Ver archivo [LICENSE](
 Desarrollado como solución empresarial integral para gestión de propiedades y personal.
 
 **Última actualización:** Enero 2026
-
----
-
-## Checklist pre-publicación en GitHub
-
-Antes de hacer push al repositorio público:
-
-- [ ] Remover IDs reales de carpetas/sheets
-- [ ] Remover nombres específicos de propiedades
-- [ ] Crear .env.example con placeholders
-- [ ] Agregar .gitignore apropiado
-- [ ] Revisar logs en búsqueda de credenciales
-- [ ] Verificar no hay service_account.json en commits
-- [ ] Crear SETUP.md con guía de configuración
-- [ ] Documentar cada módulo
-- [ ] Revisar visibilidad de repositorio (público/privado)
-- [ ] Agregar LICENSE
