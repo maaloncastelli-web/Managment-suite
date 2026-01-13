@@ -1,5 +1,3 @@
-resumen técnico y funcional del ecosistema que hemos construido. Esta arquitectura opera bajo un modelo Serverless (sin servidores dedicados), utilizando la infraestructura de Google Workspace.
-
 Arquitectura del Sistema: "Gestor de Pólizas AGT"
 1. Interfaz de Usuario (Frontend - index.html)
 
