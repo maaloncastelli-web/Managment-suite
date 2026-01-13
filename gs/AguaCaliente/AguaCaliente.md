@@ -1,8 +1,7 @@
-resumen ejecutivo y técnico de tu Sistema de Gestión de Medidores v14.0.
 
 Esta aplicación es una Web App progresiva (PWA) construida sobre Google Apps Script, utilizando Google Sheets como base de datos y Google Drive como almacenamiento de evidencias fotográficas.
 
-1. Panel de Administración (Gerencia)
+1. Panel de Administración
 Archivo: Admin.html Es el centro de control para supervisar el avance y gestionar permisos.
 
 Dashboard Visual: Muestra barras de progreso con el porcentaje de avance de lecturas por comunidad.
