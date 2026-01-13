@@ -1,5 +1,3 @@
-he preparado un resumen técnico ejecutivo que describe la arquitectura y todas las capacidades funcionales de la aplicación desarrollada bajo el estándar V7.0 (Dynamic KPIs & Bulk Management).
-
 1. Arquitectura y Stack Tecnológico
 La aplicación es una SPA (Single Page Application) construida sobre el ecosistema de Google, diseñada con un enfoque mobile-first para ser operada con total fluidez desde teléfonos móviles.
 
