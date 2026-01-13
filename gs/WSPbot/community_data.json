@@ -1,0 +1,72 @@
+{
+  "San Francisco": {
+    "email": "edificiosf265@gmail.com",
+    "portal": "ComunidadFeliz",
+    "units": 300,
+    "towers": 2,
+    "platform": "comunidadfeliz",
+    "bank": "Santander",
+    "oauth_email": "edificiosf265@gmail.com",
+    "is_active": true
+  },
+  "San Isidro": {
+    "email": "sanisidro.edificio635@gmail.com",
+    "portal": "ComunidadFeliz",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  },
+  "Emoción": {
+    "email": "administracion@santavictoria538.cl",
+    "portal": "ComunidadFeliz",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  },
+  "Santa Victoria": {
+    "email": "pagossantavictoria562@gmail.com",
+    "portal": "ComunidadFeliz",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  },
+  "Smart": {
+    "email": "edificioconceptosmart@gmail.com",
+    "portal": "Edifito",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  },
+  "Select": {
+    "email": "completar.select@agt.local",
+    "portal": "Edifito",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  },
+  "Demo": {
+    "email": "demo@agt.com",
+    "portal": "Demo",
+    "units": null,
+    "towers": null,
+    "platform": null,
+    "bank": null,
+    "oauth_email": null,
+    "is_active": true
+  }
+}

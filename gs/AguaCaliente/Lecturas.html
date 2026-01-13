@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reporte – <?= COMMUNITY_NAME ?></title>
+  <style>
+    :root { --b:#e5e7eb; --bg:#f9fafb; --txt:#111827; --mut:#6b7280; --card:#ffffff; --accent:#1f2937; --link:#2563eb; --danger:#dc2626; --success:#16a34a; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--txt); font-family:system-ui, -apple-system, sans-serif; }
+    .wrap { max-width:720px; margin:20px auto; padding:0 16px; padding-bottom: 60px; }
+    
+    .header { background:#fff; border:1px solid var(--b); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+    .header h1 { font-size:1.1rem; margin:0; }
+    .chip { font-size:.85rem; font-weight:700; padding:6px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; margin-left:auto; }
+    
+    .controls { display:grid; grid-template-columns: 1fr 2fr; gap:10px; margin-top:12px; }
+    input, select, button { width:100%; padding:10px; border-radius:10px; border:1px solid var(--b); font-size:15px; box-sizing:border-box; background:#fff;}
+    
+    .list { margin-top:14px; display:grid; gap:10px; }
+    
+    .item { background:#fff; border:1px solid var(--b); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; transition:box-shadow 0.2s; }
+    .item:hover { box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+
+    .row { display:flex; justify-content:space-between; align-items:center; }
+    .unit { font-weight:800; font-size:1.15rem; color:var(--accent); }
+    .val { font-family:monospace; font-size:1.2rem; background:#f3f4f6; padding:2px 8px; border-radius:6px; border:1px solid #e5e7eb; letter-spacing: 1px; }
+    
+    .meta-row { display:flex; gap:10px; font-size:0.85rem; align-items:center; }
+    .timestamp { color:var(--mut); }
+    
+    /* BADGES */
+    .badge { padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.75rem; text-transform:uppercase; }
+    .bdg-good { background:#dcfce7; color:var(--success); }
+    .bdg-bad { background:#fee2e2; color:var(--danger); }
+
+    .comment-box { background:#fffbeb; border:1px solid #fcd34d; padding:8px; border-radius:6px; font-size:0.9rem; color:#92400e; font-style:italic; }
+
+    .actions { margin-top:4px; padding-top:8px; border-top:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; }
+    .links a { color:var(--link); text-decoration:none; margin-right:12px; font-size:0.9rem; font-weight:500; }
+    
+    .btn-edit { background:#fff; border:1px solid #d1d5db; padding:6px 12px; font-size:0.85rem; border-radius:6px; color:#374151; cursor:pointer; }
+    .btn-edit:hover { background:#f9fafb; border-color:#9ca3af; }
+
+    /* EDIT MODE */
+    .edit-form { background:#eff6ff; padding:12px; border-radius:8px; border:1px solid #bfdbfe; }
+    .form-row { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px; }
+    .form-label { font-size:0.75rem; font-weight:700; color:#1e40af; margin-bottom:4px; display:block; }
+    .form-actions { display:flex; gap:8px; }
+    .btn-save { background:#2563eb; color:#fff; border:none; flex:1; cursor:pointer; font-weight:600; }
+    .btn-cancel { background:#fff; color:#4b5563; border:1px solid #d1d5db; width:auto; cursor:pointer; }
+
+    .btn-back { background:transparent; border:none; padding:0; width:auto; font-weight:600; color:var(--accent); text-align:left; margin-bottom:10px; display:inline-block; }
+    #empty { text-align:center; color:var(--mut); margin-top:20px; display:none; }
+    .loader-inline { text-align:center; padding:20px; color:var(--mut); }
+  </style>
+</head>
+<body>
+  <script>
+    const COMMUNITY_KEY  = '<?= COMMUNITY_KEY ?>';
+    const COMMUNITY_NAME = '<?= COMMUNITY_NAME ?>';
+  </script>
+
+  <div class="wrap">
+    <button class="btn-back" id="btnVolver">← Volver al formulario</button>
+    
+    <div class="header">
+      <h1>Reporte Mensual</h1>
+      <span class="chip"><?= COMMUNITY_NAME ?></span>
+    </div>
+
+    <div class="controls">
+      <input type="month" id="mesSelector">
+      <input type="search" id="searchInput" placeholder="Buscar por unidad...">
+    </div>
+
+    <div id="list" class="list"></div>
+    <div id="loader" class="loader-inline">Cargando datos...</div>
+    <div id="empty">No se encontraron lecturas para este mes.</div>
+  </div>
+
+  <script>
+    // URL FIJA (IMPORTANTE: Verifica que sea la misma de tu despliegue)
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbxCw5m1BJVL0jvSYlVm37yFqlvYAr7k8aSwhYFH0jm7UW-zNo51zvRJyTUdGwX5x1gEkQ/exec";
+
+    const listEl = document.getElementById('list');
+    const loaderEl = document.getElementById('loader');
+    const emptyEl = document.getElementById('empty');
+    const mesSelector = document.getElementById('mesSelector');
+    const searchInput = document.getElementById('searchInput');
+    
+    let currentData = []; 
+
+    // --- INICIO ---
+    (function init(){
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      mesSelector.value = `${yyyy}-${mm}`;
+      cargarDatos();
+    })();
+
+    mesSelector.addEventListener('change', cargarDatos);
+    
+    searchInput.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      render(term);
+    });
+
+    document.getElementById('btnVolver').addEventListener('click', () => {
+      window.top.location.href = `${BASE_URL}?comunidad=${COMMUNITY_KEY}`;
+    });
+
+    // --- CARGAR DATOS ---
+    function cargarDatos() {
+      const mes = mesSelector.value;
+      if(!mes) return;
+
+      listEl.innerHTML = '';
+      loaderEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      currentData = [];
+
+      google.script.run
+        .withSuccessHandler(data => {
+          loaderEl.style.display = 'none';
+          currentData = data || [];
+          render(); 
+        })
+        .withFailureHandler(err => {
+          loaderEl.innerHTML = 'Error al cargar: ' + err.message;
+        })
+        .getLecturasDelMes(COMMUNITY_KEY, mes);
+    }
+
+    // --- RENDERIZAR ---
+    function render(filterText = '') {
+      listEl.innerHTML = '';
+      
+      const filtered = currentData.filter(item => {
+        return item.unidad.toLowerCase().includes(filterText) || 
+               String(item.medida).includes(filterText);
+      });
+
+      if (filtered.length === 0) {
+        emptyEl.style.display = 'block';
+        if(currentData.length > 0) emptyEl.textContent = "No coincide con la búsqueda.";
+        else emptyEl.textContent = "No hay lecturas registradas en este mes.";
+        return;
+      }
+      
+      emptyEl.style.display = 'none';
+
+      filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = getDisplayHtml(item);
+        
+        // Vincular botón editar
+        const btnEdit = div.querySelector('.btn-edit');
+        if(btnEdit) {
+            btnEdit.addEventListener('click', () => activarEdicion(item, div));
+        }
+
+        listEl.appendChild(div);
+      });
+    }
+
+    // HTML DE VISUALIZACIÓN
+    function getDisplayHtml(item) {
+        const isBad = (item.estado || '').toLowerCase() === 'malo';
+        const badgeClass = isBad ? 'bdg-bad' : 'bdg-good';
+        const estadoText = item.estado || 'Bueno';
+
+        let commentHtml = '';
+        if (item.comentario) {
+            commentHtml = `<div class="comment-box">${escapeHtml(item.comentario)}</div>`;
+        }
+
+        return `
+          <div class="row">
+            <span class="unit">Unidad ${escapeHtml(item.unidad)}</span>
+            <span class="val">${item.medida}</span>
+          </div>
+          
+          <div class="meta-row">
+            <span class="badge ${badgeClass}">${estadoText}</span>
+            <span class="timestamp">${item.timestamp}</span>
+          </div>
+
+          ${commentHtml}
+
+          <div class="actions">
+            <div class="links">
+              ${item.fotoUrl ? `<a href="${item.fotoUrl}" target="_blank">📷 Foto</a>` : ''}
+              ${item.link ? `<a href="${item.link}" target="_blank">📍 Mapa</a>` : ''}
+            </div>
+            <button class="btn-edit">✏️ Editar</button>
+          </div>
+        `;
+    }
+
+    // --- MODO EDICIÓN ---
+    function activarEdicion(item, divElement) {
+        divElement.innerHTML = `
+            <div class="edit-form">
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Unidad</label>
+                        <input type="text" id="edit-unidad-${item.unidad}" value="${escapeHtml(item.unidad)}">
+                    </div>
+                    <div>
+                        <label class="form-label">Medida</label>
+                        <input type="text" inputmode="decimal" id="edit-medida-${item.unidad}" value="${item.medida}">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel">Cancelar</button>
+                    <button class="btn-save">Guardar Cambios</button>
+                </div>
+            </div>
+        `;
+
+        const btnCancel = divElement.querySelector('.btn-cancel');
+        const btnSave = divElement.querySelector('.btn-save');
+
+        btnCancel.addEventListener('click', () => {
+            divElement.innerHTML = getDisplayHtml(item);
+            divElement.querySelector('.btn-edit').addEventListener('click', () => activarEdicion(item, divElement));
+        });
+
+        btnSave.addEventListener('click', () => {
+            const newUnidad = document.getElementById(`edit-unidad-${item.unidad}`).value.trim();
+            const newMedida = document.getElementById(`edit-medida-${item.unidad}`).value.trim();
+            
+            if(!newUnidad || !newMedida) { alert('Completa los campos'); return; }
+
+            btnSave.innerText = 'Guardando...';
+            btnSave.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(res => {
+                    if(res.ok) {
+                        item.unidad = newUnidad;
+                        item.medida = newMedida;
+                        divElement.innerHTML = getDisplayHtml(item);
+                        divElement.querySelector('.btn-edit').addEventListener('click', () => activarEdicion(item, divElement));
+                    } else {
+                        alert('Error: ' + res.message);
+                        btnSave.innerText = 'Guardar';
+                        btnSave.disabled = false;
+                    }
+                })
+                .withFailureHandler(err => {
+                    alert('Error crítico: ' + err.message);
+                    btnSave.disabled = false;
+                })
+                .actualizarLectura({
+                    comunidad: COMMUNITY_KEY,
+                    mes: mesSelector.value,
+                    oldUnidad: item.unidad,
+                    newUnidad: newUnidad,
+                    medida: newMedida
+                });
+        });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return text;
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lectura - <?= COMMUNITY_NAME ?></title>
+  <style>
+    /* ... (Mantener estilos anteriores) ... */
+    :root { --b:#e5e7eb; --bg:#f9fafb; --txt:#111827; --card:#ffffff; --accent:#1f2937; --info-bg:#eff6ff; --info-txt:#1e40af; --danger-bg:#fef2f2; --danger-txt:#991b1b; --warn-bg:#fffbeb; --warn-txt:#b45309; --pc-btn:#8b5cf6; --pc-btn-hover:#7c3aed; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--txt); font-family:system-ui, sans-serif; }
+    .wrap { max-width:720px; margin:20px auto; padding:0 16px; padding-bottom: 80px; }
+    .card { background:var(--card); border:1px solid var(--b); border-radius:14px; overflow:hidden; margin-top:16px; }
+    .card-body { padding:16px; }
+    .header { background:#fff; border:1px solid var(--b); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:12px; }
+    .header h1 { font-size:1.15rem; margin:0; }
+    .chip { font-size:.85rem; font-weight:700; padding:6px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+    
+    .actions-top { display:flex; gap:10px; align-items:center; background:var(--card); border-bottom:1px solid var(--b); padding:12px; }
+    .title { font-weight:700; }
+    .spacer { flex:1; }
+    
+    input, button, select, textarea { width:100%; padding:12px; border-radius:10px; border:1px solid var(--b); font-size:16px; box-sizing: border-box; background: #fff; margin-top:6px; }
+    label { display:block; font-weight:600; margin-top:12px; }
+    .btn { cursor:pointer; font-weight: 500; margin-top:0; }
+    .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .btn.ghost { background:#fff; }
+    
+    /* Botón PC especial */
+    .btn-pc { background:var(--pc-btn); color:#fff; border:none; display:none; /* Oculto por defecto */ }
+    .btn-pc:hover { background:var(--pc-btn-hover); }
+
+    .inline-actions { display:flex; gap:10px; flex-wrap: wrap; }
+    .preview { display:none; margin-top:10px; width:100%; border-radius:12px; background:#000; object-fit: contain; max-height: 400px; }
+    .meta { font-size:.8rem; color:#6b7280; margin-top:6px; }
+    .prev-data { margin-top:6px; padding:10px; background:var(--info-bg); border:1px solid #dbeafe; border-radius:8px; color:var(--info-txt); font-size:0.9rem; display:none; }
+    
+    .offline-bar { display:none; background:var(--warn-bg); color:var(--warn-txt); padding:10px; border:1px solid #fcd34d; border-radius:8px; margin-bottom:15px; }
+    .sync-area { display:none; margin-top:20px; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; text-align:center; }
+    .btn-sync { background:#16a34a; color:#fff; width:100%; font-weight:bold; }
+    
+    .blocked-view { display:none; text-align:center; padding:40px; background:var(--danger-bg); color:var(--danger-txt); border-radius:8px; }
+    .loader-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.95); z-index:50; flex-direction:column; gap:15px; }
+    .spinner { width:48px; height:48px; border-radius:50%; border:5px solid #e5e7eb; border-top-color:#1f2937; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <script>
+    const COMMUNITY_KEY  = '<?= COMMUNITY_KEY ?>';
+    const COMMUNITY_NAME = '<?= COMMUNITY_NAME ?>';
+  </script>
+
+  <div id="loader" class="loader-overlay">
+    <div class="spinner"></div>
+    <div>Cargando...</div>
+  </div>
+
+  <div class="wrap">
+    <div id="offlineBar" class="offline-bar">📡 Modo Sin Conexión activo.</div>
+    <div id="syncArea" class="sync-area">
+      <div>Pendientes: <strong id="queueCount">0</strong></div>
+      <button id="btnSync" class="btn btn-sync">☁️ SUBIR AHORA</button>
+    </div>
+
+    <div class="header"><h1>Medidores</h1><span class="chip"><?= COMMUNITY_NAME ?></span></div>
+
+    <div class="card">
+      <div class="actions-top">
+        <span class="title">Ingreso</span>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" id="btnLecturas" style="width:auto">Historial</button>
+        <button type="button" class="btn primary" id="btnGuardarTop" style="width:auto">Guardar</button>
+      </div>
+
+      <div class="card-body">
+        <div id="blockedView" class="blocked-view"><h3>🔒 Periodo Cerrado</h3><p>Ingreso bloqueado por administración.</p></div>
+
+        <form id="formLectura">
+          <div><label>Mes</label><input type="month" id="mes" required /></div>
+          
+          <div>
+            <label>Unidad</label>
+            <select id="unidad" required disabled><option>Cargando...</option></select>
+            <div id="prevDataBox" class="prev-data"></div>
+          </div>
+
+          <div><label>Medida</label><input type="text" id="medida" inputmode="decimal" placeholder="12345" required /></div>
+          
+          <div>
+            <label>Estado</label>
+            <select id="estado">
+              <option value="Bueno" selected>Bueno</option>
+              <option value="Malo">Malo / Averiado</option>
+            </select>
+          </div>
+
+          <div><label>Observaciones</label><textarea id="comentario" placeholder="Escribe aquí..."></textarea></div>
+
+          <div>
+            <label>Evidencia</label>
+            <div class="inline-actions">
+              <button type="button" class="btn ghost" id="btnTomarFoto" style="flex:1;">📷 Tomar foto</button>
+              
+              <button type="button" class="btn btn-pc" id="btnSubirArchivo" style="flex:1;">Carga PC</button>
+              
+              <input type="file" id="fileInputMobile" accept="image/*" capture="environment" style="display:none;" />
+              <input type="file" id="fileInputPC" accept="image/*" style="display:none;" />
+            </div>
+            
+            <img id="preview" class="preview" />
+            <div id="imgMeta" class="meta" style="display:none;"></div>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:20px; font-size:0.8rem; color:#aaa;">v9.0 - PC Upload</div>
+  </div>
+
+  <script>
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbxCw5m1BJVL0jvSYlVm37yFqlvYAr7k8aSwhYFH0jm7UW-zNo51zvRJyTUdGwX5x1gEkQ/exec";
+    const LS_QUEUE_KEY = `PENDING_READINGS_${COMMUNITY_KEY}`;
+    const LS_UNITS_KEY = `CACHED_UNITS_${COMMUNITY_KEY}`;
+
+    const elLoader = document.getElementById('loader');
+    const elForm = document.getElementById('formLectura');
+    const elBlocked = document.getElementById('blockedView');
+    const btnGuardar = document.getElementById('btnGuardarTop');
+    const offlineBar = document.getElementById('offlineBar');
+    const syncArea = document.getElementById('syncArea');
+    const queueCount = document.getElementById('queueCount');
+    const btnSync = document.getElementById('btnSync');
+    
+    const elMes = document.getElementById('mes');
+    const elUnidad = document.getElementById('unidad');
+    const elPrevData = document.getElementById('prevDataBox');
+    const elMedida = document.getElementById('medida');
+    const elEstado = document.getElementById('estado');
+    const elComentario = document.getElementById('comentario');
+    const elPreview = document.getElementById('preview');
+    const elMeta = document.getElementById('imgMeta');
+    
+    // Botones de Foto
+    const btnTomarFoto = document.getElementById('btnTomarFoto');
+    const btnSubirArchivo = document.getElementById('btnSubirArchivo');
+    const fileInputMobile = document.getElementById('fileInputMobile');
+    const fileInputPC = document.getElementById('fileInputPC');
+
+    (function init() {
+      updateNetworkStatus();
+      window.addEventListener('online', updateNetworkStatus);
+      window.addEventListener('offline', updateNetworkStatus);
+
+      const d = new Date();
+      elMes.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      checkQueue();
+      initDataLoad();
+    })();
+
+    function updateNetworkStatus() {
+      if (navigator.onLine) { offlineBar.style.display = 'none'; btnSync.disabled = false; checkQueue(); }
+      else { offlineBar.style.display = 'block'; btnSync.disabled = true; }
+    }
+    function checkQueue() {
+      const q = JSON.parse(localStorage.getItem(LS_QUEUE_KEY) || '[]');
+      if (q.length > 0) { syncArea.style.display = 'block'; queueCount.innerText = q.length; }
+      else { syncArea.style.display = 'none'; }
+    }
+
+    function initDataLoad() {
+      google.script.run
+        .withSuccessHandler(status => {
+          if (status.locked) {
+            elForm.style.display = 'none'; btnGuardar.style.display = 'none'; elBlocked.style.display = 'block';
+          } else {
+            // VERIFICAR SI MOSTRAMOS BOTÓN PC
+            if (status.allowUpload) {
+              btnSubirArchivo.style.display = 'block';
+            }
+            cargarUnidadesServer();
+          }
+          elLoader.style.display = 'none';
+        })
+        .withFailureHandler(() => {
+          elLoader.style.display = 'none';
+          const cached = localStorage.getItem(LS_UNITS_KEY);
+          if (cached) populateUnits(JSON.parse(cached));
+        })
+        .getCommunityStatus(COMMUNITY_KEY);
+    }
+
+    function cargarUnidadesServer() {
+      google.script.run.withSuccessHandler(l => {
+        localStorage.setItem(LS_UNITS_KEY, JSON.stringify(l));
+        populateUnits(l);
+      }).getUnidadesPendientes(COMMUNITY_KEY, elMes.value);
+    }
+
+    function populateUnits(lista) {
+      elUnidad.innerHTML = '';
+      if (!lista || lista.length === 0) elUnidad.add(new Option("¡Todo registrado!", ""));
+      else {
+        elUnidad.add(new Option("Selecciona...", "", true, true));
+        lista.sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true}));
+        lista.forEach(u => elUnidad.add(new Option(u, u)));
+        elUnidad.disabled = false;
+      }
+    }
+
+    // --- EVENTOS FOTO ---
+    // 1. Botón Móvil
+    btnTomarFoto.addEventListener('click', () => fileInputMobile.click());
+    fileInputMobile.addEventListener('change', () => processFile(fileInputMobile.files[0]));
+
+    // 2. Botón PC
+    btnSubirArchivo.addEventListener('click', () => fileInputPC.click());
+    fileInputPC.addEventListener('change', () => processFile(fileInputPC.files[0]));
+
+    async function processFile(file) {
+      if (!file) return;
+      try {
+        const dataUrl = await compressImage(file, 1024, 0.7);
+        elPreview.src = dataUrl;
+        elPreview.style.display = 'block';
+        elMeta.innerText = 'Imagen cargada';
+        elMeta.style.display = 'block';
+      } catch (e) { alert('Error imagen'); }
+    }
+
+    // --- EVENTOS FORMULARIO ---
+    elMes.addEventListener('change', () => { elLoader.style.display='flex'; initDataLoad(); });
+    
+    elUnidad.addEventListener('change', () => {
+      const u = elUnidad.value;
+      if(!u) { elPrevData.style.display='none'; return; }
+      if(navigator.onLine) {
+        elPrevData.style.display='block'; elPrevData.innerHTML='Buscando...';
+        google.script.run.withSuccessHandler(res => {
+           elPrevData.innerHTML = res ? `Anterior (${res.mes}): <strong>${res.medida}</strong>` : `Sin historial.`;
+        }).getLecturaAnterior(COMMUNITY_KEY, u);
+      } else { elPrevData.style.display='none'; }
+    });
+
+    btnGuardar.addEventListener('click', async () => {
+      const p = {
+        comunidad: COMMUNITY_KEY, mes: elMes.value, unidad: elUnidad.value,
+        medida: document.getElementById('medida').value.trim(),
+        fotoDataUrl: elPreview.src, estado: elEstado.value, comentario: elComentario.value,
+        timestamp_creacion: new Date().toISOString()
+      };
+      if(!p.unidad || !p.medida || p.fotoDataUrl.length<100) return alert('Faltan datos (Unidad, Medida o Foto).');
+      
+      elLoader.style.display = 'flex';
+      try { const pos = await getPosition(); if(pos.lat) { p.lat=pos.lat; p.lng=pos.lng; } } catch(e){}
+
+      if(navigator.onLine) {
+        google.script.run.withSuccessHandler(res => {
+          elLoader.style.display='none';
+          if(res.ok) { alert('Guardado'); cleanForm(); } else alert('Error: '+res.message);
+        }).withFailureHandler(() => saveOffline(p)).guardarLectura(p);
+      } else saveOffline(p);
+    });
+
+    function saveOffline(p) {
+      const q = JSON.parse(localStorage.getItem(LS_QUEUE_KEY)||'[]');
+      q.push(p);
+      localStorage.setItem(LS_QUEUE_KEY, JSON.stringify(q));
+      elLoader.style.display='none'; alert('Guardado Offline.');
+      cleanForm(); checkQueue();
+    }
+
+    function cleanForm() {
+      document.getElementById('medida').value=''; elPreview.src=''; elPreview.style.display='none';
+      elMeta.style.display='none'; elComentario.value=''; elPrevData.style.display='none';
+      fileInputMobile.value=''; fileInputPC.value='';
+      if(navigator.onLine) initDataLoad();
+      else { if(elUnidad.selectedIndex>0) elUnidad.remove(elUnidad.selectedIndex); elUnidad.value=''; }
+    }
+
+    // --- SYNC ---
+    btnSync.addEventListener('click', async () => {
+      if(!navigator.onLine) return alert('Sin conexión');
+      const q = JSON.parse(localStorage.getItem(LS_QUEUE_KEY)||'[]');
+      if(q.length===0) return;
+      elLoader.style.display='flex';
+      let fails=[]; let ok=0;
+      for(let i=0; i<q.length; i++) {
+        try {
+          await new Promise((res,rej)=> {
+            google.script.run.withSuccessHandler(r=>{ if(r.ok) res(); else rej(r.message); })
+            .withFailureHandler(e=>rej(e.message)).guardarLectura(q[i]);
+          });
+          ok++;
+        } catch(e) { fails.push(q[i]); }
+      }
+      localStorage.setItem(LS_QUEUE_KEY, JSON.stringify(fails));
+      elLoader.style.display='none'; checkQueue(); initDataLoad();
+      alert(`Subidos: ${ok}. Fallos: ${fails.length}`);
+    });
+
+    document.getElementById('btnLecturas').addEventListener('click', () => {
+       window.top.location.href = `${BASE_URL}?comunidad=${COMMUNITY_KEY}&page=lecturas`;
+    });
+
+    function getPosition() { return new Promise(r => { if(!navigator.geolocation)return r({}); navigator.geolocation.getCurrentPosition(p=>r({lat:p.coords.latitude,lng:p.coords.longitude}),()=>r({}),{timeout:5000}); }); }
+    function compressImage(f,w,q) { return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>{ const i=new Image(); i.onload=()=>{ const c=document.createElement('canvas'); const s=Math.min(1,w/i.width); c.width=i.width*s; c.height=i.height*s; c.getContext('2d').drawImage(i,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',q)); }; i.src=e.target.result; }; r.readAsDataURL(f); }); }
+  </script>
+</body>
+</html>

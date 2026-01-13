@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard</title>
+  <style>
+    :root { 
+      --bg: #f8fafc; 
+      --card: #ffffff; 
+      --txt-head: #1e293b; 
+      --txt-body: #475569; 
+      --primary: #3b82f6; 
+      --success: #22c55e; 
+      --danger: #ef4444; 
+      --border: #e2e8f0; 
+      --purple: #8b5cf6;
+      --link-bg: #e0f2fe;
+      --link-txt: #0284c7;
+    }
+    body { margin:0; padding:20px; background:var(--bg); color:var(--txt-body); font-family:system-ui, sans-serif; }
+    .container { max-width:1100px; margin:0 auto; padding-bottom: 60px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+    .refresh-btn { background:var(--card); border:1px solid var(--border); color:var(--primary); padding:8px 16px; border-radius:8px; cursor:pointer; }
+    
+    .top-section { display:grid; grid-template-columns: 1fr; gap:24px; margin-bottom:24px; }
+    @media (min-width: 900px) { .top-section { grid-template-columns: 1.4fr 1fr; } } 
+
+    .panel { background:var(--card); border-radius:16px; padding:20px; border:1px solid var(--border); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05); }
+    .panel-header { display:flex; justify-content:space-between; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom:15px; }
+    .panel-title { margin:0; font-size:1.15rem; font-weight:700; color:var(--txt-head); }
+
+    /* Control Rows - GRID AJUSTADO PARA 4 COLUMNAS (Info | Link | Switch1 | Switch2) */
+    .locks-list { display:flex; flex-direction:column; gap:10px; }
+    .lock-row { 
+      display:grid; 
+      grid-template-columns: 1fr auto auto auto; /* Info - Botón Link - Switch Lock - Switch Upload */
+      gap:15px; 
+      align-items:center; 
+      padding:12px; 
+      background:#f8fafc; 
+      border-radius:10px; 
+      border:1px solid var(--border); 
+    }
+    /* En móvil, ajustamos el grid */
+    @media (max-width: 600px) {
+      .lock-row { grid-template-columns: 1fr 1fr; row-gap: 15px; }
+      .lock-info { grid-column: 1 / -1; }
+    }
+    
+    .lock-info { font-weight:700; color:var(--txt-head); display:flex; flex-direction:column;}
+    
+    .switch-group { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .switch-label { font-size:0.65rem; text-transform:uppercase; color:#64748b; font-weight:700; }
+
+    /* ESTILO BOTÓN LINK (NUEVO) */
+    .btn-link {
+      text-decoration: none;
+      background: var(--link-bg);
+      color: var(--link-txt);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .btn-link:hover { background: #bae6fd; }
+
+    /* Switch CSS */
+    .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    
+    .sw-lock input:checked + .slider { background-color: var(--success); }
+    .sw-lock input:checked + .slider:before { transform: translateX(18px); }
+    
+    .sw-upload input:checked + .slider { background-color: var(--purple); }
+    .sw-upload input:checked + .slider:before { transform: translateX(18px); }
+
+    /* Stats y Bad Grid */
+    .stats-grid { display:grid; gap:15px; }
+    .stat-card { background:#fff; padding:15px; border-radius:10px; border:1px solid var(--border); }
+    .stat-head { display:flex; justify-content:space-between; font-weight:700; margin-bottom:5px; }
+    .progress-track { height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; }
+    .progress-fill { height:100%; background:var(--primary); width:0; }
+    
+    .bad-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px; margin-top:20px; }
+    .bad-card { border-left:4px solid var(--danger); background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+    .bad-header { display:flex; justify-content:space-between; margin-bottom:5px; }
+    .bad-unit { font-weight:800; }
+    .bad-comm { font-size:0.75rem; text-transform:uppercase; color:#64748b; }
+    .bad-comment { font-size:0.9rem; background:#fef2f2; padding:8px; border-radius:6px; font-style:italic; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>Administración</h1>
+    <button class="refresh-btn" onclick="cargarDashboard()">↻ Recargar</button>
+  </div>
+
+  <div class="top-section">
+    <div class="panel">
+      <div class="panel-header"><h2 class="panel-title">Configuración Global</h2></div>
+      <div id="locks-list" class="locks-list"><div style="text-align:center;">Cargando...</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Avance</h2>
+        <input type="month" id="mesSelector" style="padding:5px; border-radius:6px; border:1px solid #ccc;">
+      </div>
+      <div id="stats-list" class="stats-grid"><div style="text-align:center;">Cargando...</div></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <div class="panel-header">
+      <h2 class="panel-title">Anomalías</h2>
+      <select id="filterBad" onchange="renderBadReadings()" style="padding:5px;"><option value="all">Todas</option></select>
+    </div>
+    <div id="bad-grid" class="bad-grid"></div>
+  </div>
+</div>
+
+<script>
+  // --- IMPORTANTE: DEBE SER LA MISMA URL QUE USAS EN INDEX.HTML ---
+  const BASE_URL = "https://script.google.com/macros/s/AKfycbybqpPzw5_mB6dLAYN0gB473wXu6nxX6RdsLkGza-cpx8-i2N9LEXJjwp0YAawzf_TL/exec";
+
+  const mesSelector = document.getElementById('mesSelector');
+  const locksList = document.getElementById('locks-list');
+  const statsList = document.getElementById('stats-list');
+  const badGrid = document.getElementById('bad-grid');
+  const filterBad = document.getElementById('filterBad');
+  let globalData = [];
+
+  (function init() {
+    const d = new Date();
+    mesSelector.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    cargarDashboard();
+  })();
+
+  mesSelector.addEventListener('change', cargarDashboard);
+
+  function cargarDashboard() {
+    google.script.run.withSuccessHandler(data => { globalData = data; renderAll(); })
+      .withFailureHandler(e => alert(e)).getAdminDashboardData(mesSelector.value);
+  }
+
+  function renderAll() { renderLocks(); renderStats(); updateBadFilters(); renderBadReadings(); }
+
+  // 1. RENDERIZAR LOCKS CON LINK
+  function renderLocks() {
+    locksList.innerHTML = '';
+    globalData.forEach(item => {
+      // Logic Lock: True = Cerrado. Toggle Checked = Abierto (!Locked)
+      const isOpen = !item.isLocked; 
+      const canUpload = item.allowUpload;
+      const linkUrl = `${BASE_URL}?comunidad=${item.key}`;
+
+      const div = document.createElement('div');
+      div.className = 'lock-row';
+      div.innerHTML = `
+        <div class="lock-info">
+          <span>${item.name}</span>
+          <span style="font-size:0.75rem; font-weight:400; color:#64748b;">${item.key}</span>
+        </div>
+        
+        <a href="${linkUrl}" target="_blank" class="btn-link">Ir al Formulario</a>
+
+        <div class="switch-group">
+          <label class="switch-label">Acceso</label>
+          <label class="switch sw-lock">
+            <input type="checkbox" ${isOpen?'checked':''} onchange="toggleStatus('${item.key}', 'lock', this)">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="switch-group">
+          <label class="switch-label">Carga PC</label>
+          <label class="switch sw-upload">
+            <input type="checkbox" ${canUpload?'checked':''} onchange="toggleStatus('${item.key}', 'upload', this)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      `;
+      locksList.appendChild(div);
+    });
+  }
+
+  function renderStats() {
+    statsList.innerHTML = '';
+    globalData.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'stat-card';
+      div.innerHTML = `
+        <div class="stat-head"><span>${item.name}</span><span>${item.percent}%</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width: ${item.percent}%"></div></div>
+        <div style="font-size:0.8rem; color:#666; margin-top:5px;">Reg: ${item.recorded}/${item.total}</div>
+      `;
+      statsList.appendChild(div);
+    });
+  }
+
+  function updateBadFilters() {
+    const curr = filterBad.value;
+    filterBad.innerHTML = '<option value="all">Todas</option>';
+    globalData.forEach(i => filterBad.add(new Option(i.name, i.key)));
+    filterBad.value = curr;
+  }
+
+  function renderBadReadings() {
+    badGrid.innerHTML = '';
+    const k = filterBad.value;
+    let count = 0;
+    globalData.forEach(c => {
+      if (k !== 'all' && c.key !== k) return;
+      if (c.badUnits && c.badUnits.length > 0) {
+        c.badUnits.forEach(b => {
+          count++;
+          const d = document.createElement('div');
+          d.className = 'bad-card';
+          d.innerHTML = `<div class="bad-header"><span class="bad-unit">${b.unit}</span><span class="bad-comm">${c.name}</span></div><div class="bad-comment">"${b.comment}"</div>`;
+          badGrid.appendChild(d);
+        });
+      }
+    });
+    if(count===0) badGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;font-style:italic;">Sin reportes</div>';
+  }
+
+  function toggleStatus(key, type, checkbox) {
+    const isChecked = checkbox.checked;
+    let valueToSend = isChecked;
+    if (type === 'lock') valueToSend = !isChecked; // Invertir lógica para lock
+
+    google.script.run.withFailureHandler(e => {
+      alert('Error: ' + e);
+      checkbox.checked = !isChecked; 
+    }).toggleCommunityStatus(key, type, valueToSend);
+  }
+</script>
+</body>
+</html>

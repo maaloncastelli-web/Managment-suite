@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carga Masiva Manual</title>
+  <style>
+    :root { --bg:#f8fafc; --txt:#1e293b; --primary:#3b82f6; --success:#22c55e; --danger:#ef4444; --border:#e2e8f0; }
+    body { margin:0; padding:20px; background:var(--bg); color:var(--txt); font-family:system-ui, sans-serif; }
+    .container { max-width:1200px; margin:0 auto; }
+    .header { display:flex; justify-content:space-between; margin-bottom:20px; }
+    .chip { padding:4px 12px; border-radius:99px; background:#eef2ff; color:var(--primary); border:1px solid #bfdbfe; font-weight:700; }
+    .upload-zone { background:#fff; border:2px dashed var(--border); border-radius:12px; padding:30px; text-align:center; cursor:pointer; }
+    .upload-zone:hover { border-color:var(--primary); background:#f0f9ff; }
+    .btn { padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer; }
+    .btn-success { background:var(--success); color:white; width:100%; padding:15px; font-size:1.2rem; }
+    .btn-danger { background:#fee2e2; color:var(--danger); padding:6px 10px; font-size:0.8rem; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .staging-container { margin-top:30px; background:#fff; border-radius:12px; border:1px solid var(--border); display:none; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:12px; background:#f8fafc; font-size:0.85rem; color:#64748b; }
+    td { padding:12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .tbl-input { width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; }
+    .unit-input { font-weight: 700; background: #f0fdf4; border-color: #86efac; }
+    .thumb-box { width:80px; height:80px; border-radius:6px; overflow:hidden; border:1px solid var(--border); cursor:zoom-in; }
+    .thumb-img { width:100%; height:100%; object-fit:cover; }
+    tr.duplicate-row { background:#fef2f2; }
+    .dup-alert { color:var(--danger); font-weight:700; font-size:0.8rem; }
+    .modal-zoom { position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:100; }
+    .modal-img { max-width:90%; max-height:90%; border-radius:8px; }
+    
+    /* --- LOADING Y PROGRESS BAR --- */
+    .loader-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; }
+    .progress-container { width: 300px; margin-top: 20px; }
+    .progress-bg { width: 100%; background-color: #e2e8f0; border-radius: 10px; height: 20px; overflow: hidden; }
+    .progress-bar { width: 0%; height: 100%; background-color: var(--primary); transition: width 0.3s ease; }
+    .progress-text { margin-top: 10px; font-weight: 700; color: var(--txt); text-align: center; }
+    .loader-spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <script>const COMMUNITY_KEY = '<?= COMMUNITY_KEY ?>';</script>
+  
+  <div id="mainLoader" class="loader-overlay">
+    <div class="loader-spinner"></div>
+    <div class="progress-container">
+      <div class="progress-bg"><div id="progressBar" class="progress-bar"></div></div>
+      <div id="loaderText" class="progress-text">Iniciando...</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header"><h1>Carga Masiva Manual</h1><span class="chip"><?= COMMUNITY_NAME ?></span></div>
+    
+    <div style="margin-bottom:20px; background:#fff; padding:15px; border-radius:12px; border:1px solid var(--border);">
+      <label style="font-weight:600;">Mes de Cargo:</label>
+      <input type="month" id="mesLote" class="tbl-input" style="width:auto; margin-left:10px;">
+    </div>
+
+    <div class="upload-zone" id="dropZone">
+      <div style="font-size:3rem;">📁</div>
+      <h3>Arrastra fotos aquí</h3>
+      <p style="color:#666; font-size:0.9rem">El sistema organizará las fotos. Usa la lista para buscar y descontar unidades.</p>
+      <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+    </div>
+
+    <div id="stagingContainer" class="staging-container">
+      <div style="padding:15px; background:#f1f5f9; border-bottom:1px solid var(--border);">
+        <h3>Resultados (<span id="countResults">0</span>)</h3>
+        <p style="font-size:0.85rem; color:#666">Escribe en "Unidad" para buscar. Las unidades usadas desaparecerán de la lista.</p>
+      </div>
+      
+      <table id="dataTable">
+        <thead><tr><th width="90">Foto</th><th width="180">Unidad (Buscador)</th><th width="140">Lectura</th><th width="130">Estado</th><th>Comentario</th><th width="80"></th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      
+      <div style="padding:20px; background:#fff; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.9rem; color:#64748b;">*Solo se subirán las filas con Unidad y Lectura ingresada.</span>
+        <button id="btnConfirmAll" class="btn btn-success" disabled>Subir Datos Listos</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="zoomModal" class="modal-zoom" onclick="this.style.display='none'"><img id="imgZoom" class="modal-img"></div>
+  <datalist id="unitsList"></datalist>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const stagingContainer = document.getElementById('stagingContainer');
+    const tableBody = document.getElementById('tableBody');
+    const mainLoader = document.getElementById('mainLoader');
+    const progressBar = document.getElementById('progressBar');
+    const loaderText = document.getElementById('loaderText');
+    const btnConfirmAll = document.getElementById('btnConfirmAll');
+    const mesLoteInput = document.getElementById('mesLote');
+    const dataList = document.getElementById('unitsList');
+    
+    const d = new Date();
+    mesLoteInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    let masterUnitList = [];
+
+    // Init
+    (function init() {
+      google.script.run.withSuccessHandler(list => {
+        masterUnitList = list.sort((a, b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
+        populateDatalist(masterUnitList);
+      }).getPublicUnitList(COMMUNITY_KEY, mesLoteInput.value);
+    })();
+
+    mesLoteInput.addEventListener('change', () => {
+       google.script.run.withSuccessHandler(list => {
+        masterUnitList = list.sort((a, b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
+        populateDatalist(masterUnitList);
+      }).getPublicUnitList(COMMUNITY_KEY, mesLoteInput.value);
+    });
+
+    function populateDatalist(list) {
+      dataList.innerHTML = '';
+      list.forEach(u => { const opt = document.createElement('option'); opt.value = u; dataList.appendChild(opt); });
+    }
+
+    function updateAvailableOptions() {
+      const usedUnits = Array.from(document.querySelectorAll('.unit-input')).map(i => i.value.trim()).filter(v => v !== "");
+      const usedSet = new Set(usedUnits);
+      const filteredList = masterUnitList.filter(u => !usedSet.has(u));
+      populateDatalist(filteredList);
+    }
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background='#f0f9ff'; });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+    async function handleFiles(files) {
+      if (files.length === 0) return;
+      // Loader inicial sin barra (solo spinner)
+      progressBar.style.width = '0%'; loaderText.innerText = "Procesando imágenes...";
+      mainLoader.style.display = 'flex';
+      
+      const filesData = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const base64 = await compressImage(files[i], 1024, 0.8);
+          filesData.push({ filename: files[i].name, base64: base64 });
+        } catch (e) {}
+      }
+      google.script.run.withSuccessHandler(renderStagingTable).procesarLoteFotos(filesData, COMMUNITY_KEY);
+    }
+
+    function renderStagingTable(results) {
+      mainLoader.style.display = 'none';
+      stagingContainer.style.display = 'block';
+      
+      results.forEach(item => {
+        const row = document.createElement('tr');
+        row.dataset.hash = item.hash;
+        row.dataset.filename = item.filename;
+        if (item.isDuplicate) row.classList.add('duplicate-row');
+
+        const inputHtml = `<input type="text" list="unitsList" class="tbl-input unit-input" placeholder="Buscar..." onfocus="updateAvailableOptions()">`;
+
+        row.innerHTML = `
+          <td>
+            <div class="thumb-box" onclick="document.getElementById('imgZoom').src='${item.base64Preview}';document.getElementById('zoomModal').style.display='flex'">
+              <img src="${item.base64Preview}" class="thumb-img">
+            </div>
+            <div style="font-size:0.7rem;color:#999;">${item.filename.substring(0,10)}...</div>
+          </td>
+          <td>${item.isDuplicate ? '<div class="dup-alert">DUPLICADA</div>' : ''}${inputHtml}</td>
+          <td><input type="text" inputmode="decimal" class="tbl-input reading-input"></td>
+          <td><select class="tbl-input status-input"><option value="Bueno">Bueno</option><option value="Malo">Malo</option></select></td>
+          <td><input type="text" class="tbl-input comment-input"></td>
+          <td><button class="btn btn-danger" onclick="this.closest('tr').remove();updateCount();">X</button></td>
+        `;
+        tableBody.appendChild(row);
+      });
+      updateCount();
+    }
+
+    function updateCount() {
+      const count = tableBody.querySelectorAll('tr').length;
+      document.getElementById('countResults').innerText = count;
+      btnConfirmAll.disabled = count === 0;
+    }
+
+    // --- SUBIDA CON BARRA DE PROGRESO ---
+    btnConfirmAll.addEventListener('click', async () => {
+      const allRows = Array.from(tableBody.querySelectorAll('tr'));
+      const validPayloads = [];
+      const rowsMap = []; // Para saber qué fila borrar al terminar
+
+      // 1. Filtrar solo filas listas
+      allRows.forEach(r => {
+        const u = r.querySelector('.unit-input').value.trim();
+        const m = r.querySelector('.reading-input').value.trim();
+        if(u && m) {
+          validPayloads.push({
+            comunidad: COMMUNITY_KEY, mes: mesLoteInput.value,
+            unidad: u, medida: m, estado: r.querySelector('.status-input').value,
+            comentario: r.querySelector('.comment-input').value,
+            fotoDataUrl: r.querySelector('.thumb-img').src,
+            // hash/filename no son obligatorios en guardarLectura individual pero útiles
+          });
+          rowsMap.push({ rowElement: r, unit: u });
+        }
+      });
+
+      if(validPayloads.length === 0) return alert('No hay filas completas para subir.');
+      if(!confirm(`Se subirán ${validPayloads.length} lecturas. Confirmar?`)) return;
+
+      // 2. Iniciar proceso visual
+      mainLoader.style.display = 'flex';
+      let successCount = 0;
+      let errorCount = 0;
+      const total = validPayloads.length;
+
+      // 3. Bucle de envío secuencial
+      for (let i = 0; i < total; i++) {
+        // Actualizar UI
+        const percent = Math.round(((i) / total) * 100);
+        progressBar.style.width = `${percent}%`;
+        loaderText.innerText = `Subiendo ${i + 1} de ${total} (${percent}%)`;
+
+        try {
+          // Promisify google.script.run para usar await
+          await new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(res => {
+                if (res.ok) resolve(); else reject(res.message);
+              })
+              .withFailureHandler(err => reject(err.message))
+              .guardarLectura(validPayloads[i]);
+          });
+          
+          // Éxito: Eliminar fila de la tabla visualmente
+          rowsMap[i].rowElement.remove();
+          successCount++;
+
+        } catch (e) {
+          console.error(e);
+          errorCount++;
+          // Marcar fila con error visualmente
+          rowsMap[i].rowElement.style.backgroundColor = '#fee2e2'; 
+        }
+      }
+
+      // 4. Finalizar
+      progressBar.style.width = '100%';
+      loaderText.innerText = "¡Completado!";
+      
+      // Pequeña pausa para ver el 100%
+      setTimeout(() => {
+        mainLoader.style.display = 'none';
+        updateCount();
+        
+        // Actualizar lista maestra (restar las que se subieron ok)
+        const sentUnits = new Set(validPayloads.slice(0, successCount).map(p => p.unidad)); 
+        masterUnitList = masterUnitList.filter(u => !sentUnits.has(u));
+        updateAvailableOptions();
+
+        if (errorCount === 0) {
+          alert(`Éxito total: ${successCount} lecturas subidas.`);
+        } else {
+          alert(`Proceso terminado.\nSubidas: ${successCount}\nErrores: ${errorCount}\n(Las filas con error quedaron marcadas en rojo)`);
+        }
+      }, 500);
+    });
+
+    function compressImage(f,w,q){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,w/i.width);c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q));};i.src=e.target.result;};r.readAsDataURL(f);});}
+  </script>
+</body>
+</html>

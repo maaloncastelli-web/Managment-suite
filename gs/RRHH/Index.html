@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <style>
+    :root { --primary: #4f46e5; --bg: #f8fafc; --border: #e2e8f0; }
+    body { background: var(--bg); font-family: 'Inter', sans-serif; color: #1e293b; padding-bottom: 30px; }
+    .nav-custom { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; padding: 0.75rem 1rem; }
+    .nav-btn-group { display: flex; background: #f1f5f9; padding: 4px; border-radius: 12px; gap: 2px; }
+    .nav-btn { border: none; background: none; padding: 8px 16px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; color: #64748b; transition: 0.2s; }
+    .nav-btn.active { background: white; color: var(--primary); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .view-container { display: none; padding: 1.5rem 1rem; max-width: 700px; margin: auto; animation: slideUp 0.4s ease-out; }
+    .active-view { display: block; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    .card-pro { background: white; border-radius: 20px; border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .worker-item { background: white; border-radius: 16px; padding: 1.25rem; margin-bottom: 0.75rem; border: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .fab { position: fixed; bottom: 2rem; right: 2rem; width: 64px; height: 64px; border-radius: 20px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); border: none; z-index: 900; }
+    .chart-box { height: 220px; width: 100%; }
+    .form-switch .form-check-input { width: 2.5em; height: 1.25em; cursor: pointer; }
+    .doc-setting-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-custom d-flex justify-content-between align-items-center">
+    <div class="nav-btn-group">
+      <button class="nav-btn active" id="btn-list" onclick="showView('list')"><i class="bi bi-people me-1"></i> Equipo</button>
+      <button class="nav-btn" id="btn-bulk" onclick="showView('bulk')"><i class="bi bi-layers me-1"></i> Masivo</button>
+      <button class="nav-btn" id="btn-kpi" onclick="showView('kpi')"><i class="bi bi-graph-up me-1"></i> KPIs</button>
+      <button class="nav-btn" id="btn-config" onclick="showView('config')"><i class="bi bi-gear-fill"></i></button>
+    </div>
+  </nav>
+
+  <div id="view-list" class="view-container active-view">
+    <div class="card-pro mb-4">
+      <input type="text" id="searchInput" class="form-control mb-3" placeholder="🔍 Buscar por nombre o RUT..." onkeyup="renderList()">
+      <select id="filterComm" class="form-select fw-semibold" onchange="renderList()">
+        <option value="TODOS">Todas las comunidades</option>
+      </select>
+    </div>
+    <div class="d-grid mb-4">
+      <button class="btn btn-dark" onclick="exportData()"><i class="bi bi-file-earmark-excel me-2"></i>Exportar Faltantes</button>
+    </div>
+    <div id="list-content"></div>
+    <button class="fab" onclick="showView('form')"><i class="bi bi-plus-lg"></i></button>
+  </div>
+
+  <div id="view-config" class="view-container">
+    <div class="card-pro mb-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-check-circle-fill me-2 text-primary"></i>Documentos Obligatorios</h6>
+      <p class="text-muted small">Selecciona los documentos que el sistema exigirá para considerar una ficha como "Al día".</p>
+      <div id="mandatory-settings-list">
+        </div>
+      <button class="btn btn-primary w-100 mt-3" onclick="saveMandatorySettings()">Guardar Configuración</button>
+    </div>
+
+    <div class="card-pro">
+      <h6 class="fw-bold mb-3"><i class="bi bi-house-add-fill me-2 text-primary"></i>Comunidades</h6>
+      <div class="input-group">
+        <input type="text" id="newCommName" class="form-control" placeholder="Nombre...">
+        <button class="btn btn-outline-primary" onclick="addComm()">Añadir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-kpi" class="view-container">
+    <div class="card-pro text-center bg-primary text-white border-0 shadow-lg mb-4">
+      <span class="small fw-bold opacity-75 d-block mb-1">TOTAL TRABAJADORES</span>
+      <h1 class="display-3 fw-bold mb-0" id="totalWorkersCount">0</h1>
+    </div>
+    <div class="card-pro mb-4">
+      <h6 class="fw-bold mb-3">Distribución</h6>
+      <div id="commBreakdown"></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-md-6"><div class="card-pro text-center"><span class="small fw-bold text-muted mb-3 d-block">DOCS CARGADOS</span><div class="chart-box"><canvas id="chartGlobal"></canvas></div></div></div>
+      <div class="col-12 col-md-6"><div class="card-pro text-center"><span class="small fw-bold text-muted mb-3 d-block">FICHAS AL DÍA</span><div class="chart-box"><canvas id="chartCritical"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <div id="view-bulk" class="view-container">
+    <div class="card-pro">
+      <h5 class="fw-bold mb-1">Importación Masiva</h5>
+      <textarea id="bulkData" class="form-control mb-3" rows="8" placeholder="Pega desde Excel..." onkeyup="processBulk()"></textarea>
+      <div id="bulkPreview" class="d-none">
+        <div class="table-responsive border rounded mb-3"><table class="table table-sm mb-0" style="font-size:11px"><tbody id="bulkTableBody"></tbody></table></div>
+        <button class="btn btn-primary w-100" onclick="submitBulk()">Importar ahora</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-form" class="view-container">
+    <div class="card-pro">
+      <button class="btn btn-light btn-sm rounded-circle mb-3" onclick="showView('list')"><i class="bi bi-arrow-left"></i></button>
+      <h5 class="fw-bold mb-4">Nueva Ficha</h5>
+      <form id="workerForm">
+        <input type="text" name="apellido" class="form-control mb-2" placeholder="Apellidos" required>
+        <input type="text" name="nombre" class="form-control mb-2" placeholder="Nombres" required>
+        <input type="text" name="rut" class="form-control mb-2" placeholder="RUT">
+        <select name="comunidad" id="commSelect" class="form-select mb-4"></select>
+        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold">CREAR</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="workerModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down"><div class="modal-content shadow-lg"><div class="modal-header"><div><h5 id="m-name" class="fw-bold mb-0"></h5><span id="m-subtitle" class="text-muted small"></span></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body px-4"><div id="doc-list-area"></div><hr><button class="btn btn-outline-danger btn-sm w-100 border-0 fw-bold" id="btn-delete"><i class="bi bi-trash3 me-2"></i>Eliminar Ficha</button></div></div></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let appData = {};
+    let charts = {};
+
+    function showView(v) {
+      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active-view'));
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('view-' + v).classList.add('active-view');
+      document.getElementById('btn-' + v).classList.add('active');
+      if(v === 'kpi') renderCharts();
+      if(v === 'config') renderConfigList();
+    }
+
+    function init() {
+      google.script.run.withSuccessHandler(data => {
+        appData = data;
+        renderCommSelect();
+        renderList();
+      }).getInitialData();
+    }
+
+    // --- LÓGICA DE CONFIGURACIÓN DINÁMICA ---
+    function renderConfigList() {
+      const allDocs = [...appData.headers.gen, ...appData.headers.ficha];
+      const container = document.getElementById('mandatory-settings-list');
+      container.innerHTML = allDocs.map(doc => `
+        <div class="doc-setting-row">
+          <span class="small">${doc}</span>
+          <div class="form-check form-switch">
+            <input class="form-check-input mandatory-check" type="checkbox" value="${doc}" ${appData.mandatory.includes(doc) ? 'checked' : ''}>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function saveMandatorySettings() {
+      const selected = Array.from(document.querySelectorAll('.mandatory-check:checked')).map(cb => cb.value);
+      google.script.run.withSuccessHandler(() => {
+        alert('Configuración guardada. Los KPIs se actualizarán.');
+        appData.mandatory = selected;
+        showView('list');
+      }).setMandatoryDocs(selected);
+    }
+
+    // --- RESTO DE FUNCIONES (BÚSQUEDA, CARGA, ETC) ---
+    function renderList() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const comm = document.getElementById('filterComm').value;
+      const container = document.getElementById('list-content');
+      const filtered = appData.trabajadores.slice(1).filter(w => (w[2] + " " + w[3] + " " + w[4]).toLowerCase().includes(search) && (comm === "TODOS" || w[7] === comm));
+      container.innerHTML = filtered.map(w => `
+        <div class="worker-item shadow-sm" onclick="openFichaByID('${w[0]}')">
+          <div><div class="fw-bold text-dark">${w[1]}. ${w[2]} ${w[3]}</div><div class="text-muted small">${w[4]} | ${w[7]}</div></div>
+          <div class="text-primary"><i class="bi bi-chevron-right fs-5"></i></div>
+        </div>`).join('');
+    }
+
+    function openFichaByID(id) {
+      const idx = appData.trabajadores.findIndex(w => w[0] === id);
+      if(idx !== -1) openFicha(idx);
+    }
+
+    function openFicha(idx) {
+      const w = appData.trabajadores[idx];
+      const headers = appData.trabajadores[0];
+      document.getElementById('m-name').innerText = `${w[1]}. ${w[2]} ${w[3]}`;
+      document.getElementById('m-subtitle').innerText = `${w[7]} - ${w[4]}`;
+      let html = '<p class="fw-bold small text-primary mb-2 mt-3 text-uppercase">Expediente</p>';
+      headers.forEach((h, i) => {
+        if(i < 8) return;
+        const isFicha = i >= (8 + appData.headers.gen.length);
+        const isMandatory = appData.mandatory.includes(h);
+        html += `<div class="doc-row">
+          <span class="small ${isMandatory ? 'fw-bold text-dark' : 'text-secondary'}">${h} ${isMandatory ? '(*)' : ''}</span>
+          <div>${w[i] ? '<span class="badge rounded-pill bg-success-subtle text-success">Ok</span>' : `<button class="btn btn-primary btn-sm rounded-pill px-3" style="font-size:10px" onclick="triggerUpload('${w[0]}','${h}',${isFicha})">Subir</button>`}</div>
+        </div>`;
+      });
+      document.getElementById('doc-list-area').innerHTML = html;
+      document.getElementById('btn-delete').onclick = () => { if(confirm('¿Eliminar?')) google.script.run.withSuccessHandler(() => { bootstrap.Modal.getInstance(document.getElementById('workerModal')).hide(); init(); }).deleteWorker(w[0]); };
+      new bootstrap.Modal(document.getElementById('workerModal')).show();
+    }
+
+    function triggerUpload(fid, type, isFicha) {
+      const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/pdf';
+      input.onchange = e => {
+        const file = e.target.files[0]; const reader = new FileReader();
+        reader.onload = f => google.script.run.withSuccessHandler(() => { alert('Cargado'); init(); }).uploadPDF(fid, type, f.target.result.split(',')[1], isFicha);
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+
+    function renderCharts() {
+      google.script.run.withSuccessHandler(stats => {
+        if(!stats) return;
+        document.getElementById('totalWorkersCount').innerText = stats.totalWorkers;
+        let commHtml = "";
+        for (let comm in stats.communitiesCount) {
+          let count = stats.communitiesCount[comm];
+          let percent = Math.round((count / stats.totalWorkers) * 100);
+          commHtml += `<div class="d-flex justify-content-between small mb-1"><span>${comm}</span><b>${count} (${percent}%)</b></div>
+          <div class="progress mb-2" style="height:4px"><div class="progress-bar bg-primary" style="width:${percent}%"></div></div>`;
+        }
+        document.getElementById('commBreakdown').innerHTML = commHtml;
+        drawChart('chartGlobal', ['Cargado', 'Pendiente'], stats.globalCompliance, ['#4f46e5', '#f1f5f9']);
+        drawChart('chartCritical', ['Al día', 'Faltante'], stats.criticalCompliance, ['#10b981', '#fee2e2']);
+      }).getKPIStats();
+    }
+
+    function drawChart(id, labels, data, colors) {
+      if(charts[id]) charts[id].destroy();
+      const ctx = document.getElementById(id).getContext('2d');
+      charts[id] = new Chart(ctx, { type: 'doughnut', data: { labels, datasets: [{ data, backgroundColor: colors, borderWeight: 0 }] }, options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: {size:10}, usePointStyle: true } } }, maintainAspectRatio: false, cutout: '78%' } });
+    }
+
+    function processBulk() {
+      const rows = document.getElementById('bulkData').value.split('\n').filter(r => r.trim() !== "");
+      let html = "";
+      rows.forEach(row => {
+        const cols = row.split('\t');
+        if(cols.length >= 4) html += `<tr><td>${cols[0]} ${cols[1]}</td><td>${cols[2]}</td><td>${cols[3]}</td></tr>`;
+      });
+      document.getElementById('bulkTableBody').innerHTML = html;
+      document.getElementById('bulkPreview').classList.remove('d-none');
+    }
+
+    function submitBulk() {
+      const rows = document.getElementById('bulkData').value.split('\n').filter(r => r.trim() !== "").map(r => {
+        const c = r.split('\t'); return { apellido: c[0], nombre: c[1], rut: c[2], comunidad: c[3] };
+      });
+      google.script.run.withSuccessHandler(() => { alert('Éxito'); document.getElementById('bulkData').value = ""; init(); showView('list'); }).saveWorkersBulk(rows);
+    }
+
+    function renderCommSelect() {
+      const opts = appData.comunidades.map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('commSelect').innerHTML = opts;
+      document.getElementById('filterComm').innerHTML = `<option value="TODOS">Todas las comunidades</option>${opts}`;
+    }
+
+    function addComm() {
+      const n = document.getElementById('newCommName').value;
+      if(n) google.script.run.withSuccessHandler(() => { document.getElementById('newCommName').value=''; init(); alert('Añadida'); }).addCommunity(n);
+    }
+
+    function exportData() {
+      google.script.run.withSuccessHandler(data => {
+        const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Faltantes"); XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
+      }).getMissingDocsData();
+    }
+
+    document.getElementById('workerForm').onsubmit = function(e) {
+      e.preventDefault();
+      google.script.run.withSuccessHandler(() => { this.reset(); showView('list'); init(); }).saveWorker(Object.fromEntries(new FormData(this)));
+    };
+
+    window.onload = init;
+  </script>
+</body>
+</html>
