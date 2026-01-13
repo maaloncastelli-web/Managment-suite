@@ -1,4 +1,4 @@
-Arquitectura del Sistema: "Gestor de Pólizas AGT"
+Arquitectura del Sistema: "Gestor de Pólizas"
 1. Interfaz de Usuario (Frontend - index.html)
 
 Tecnología: HTML5 + Bootstrap 5 (Responsivo para móviles y escritorio).
